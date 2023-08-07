@@ -68,7 +68,7 @@ So far they have been using an ETL tool like Informatica to periodically extract
 
 ![Original ETL](img/original-etl.png)
 
-The ETL is generating a query like the following, and executing it every hour at `hh+5 min`` to fetch the orders for the previous hour:
+The ETL is generating a query like the following, and executing it every hour at `hh+5 min` to fetch the orders for the previous hour:
 
 ```
 select 
@@ -87,7 +87,7 @@ from orders
 	join clients on table_assigment.client_id = clients.id
 	join tables on table_assigment.table_id = tables.id
 where order_time > date_trunc('hour',current_timestamp) - interval '1' hour 
-and order_time <= date_trunc('hour',current_timestamp) - interval '1' hour 
+and order_time <= date_trunc('hour',current_timestamp) 
 group by 
     orders.id,
     clients.name,
@@ -100,6 +100,22 @@ Obviously that's not great, adding between 5 minutes (lag) and an entire hour de
 
 Therefore now, to minimize latency, they want to move away from the batch based approach and embrace streaming. They will use the combination of Apache Flink® and Apache Kafka®.
 
+1st scenario: Use separated Apache Flink JDBC connectors
+--------------------------------------------------------
+
+The first test would be to keep the batch approach and just move to Apache Flink. We can do it by mapping the four PostgreSQL tables into 4 Apache Flink table definition using the JDBC connector.
+
+![Apache Flink tables using the JDBC connector](img/direct-jdbc.png)
+
+Pro:
+
+* We replicated what the original ETL 
+* We kept the SQL 1-1
+
+Cons:
+* Apache Flink will threat each of the JDBC connections as standalone
+* No predicate pushdown
+* Risk of inconsistency
 
 
 License
