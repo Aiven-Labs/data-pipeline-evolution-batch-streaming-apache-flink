@@ -54,7 +54,7 @@ Every time a client enters the restaurant, they take the name
 
 And they record the table where the client is assigned to, noting down the time in and the time out once the customer exists the restaurant
 
-![List of table assignement](table-assignement.png)
+![List of table assignement](img/table-assignement.png)
 
 Lastly, they record the customer order 
 
@@ -107,8 +107,7 @@ The first test would be to keep the batch approach and just move to Apache Flink
 
 ![Apache Flink tables using the JDBC connector](img/direct-jdbc.png)
 
-Basic JDBC solution with Aiven for Apache Flink
-'''''''''''''''''''''''''''''''''''''''''''''''
+**Basic JDBC solution with Aiven for Apache Flink**
 
 Using Aiven we can achieve it by:
 
@@ -213,8 +212,7 @@ Compared to the PostgreSQL SQL, The Flink SQL:
 * Replaces the join beween `orders` and `pizzas` with a new join based on the `unnest` operation
 * Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `LISTAGG` (even if the second is not 100% compatible, it allows the creation of a valid JSON) 
 
-Running the Application
-'''''''''''''''''''''''
+**Running the Application**
 
 The above application will run in batch, therefore we'll need an external scheduler invoking the application run every hour. With Aiven for Apache Flink you can:
 
@@ -262,10 +260,17 @@ Pro:
 * We showcased the Apache Flink technology
 
 Cons:
+* Still batching
+* Requires external scheduler
 * Apache Flink will threat each of the JDBC connections as standalone
 * No predicate pushdown - Each query is executed in isolation - Risk of inconsistency - what if a client changes table during the query time?
 
+2nd scenario: Unique Apache Flink JDBC connector against a PostgreSQL view
+--------------------------------------------------------------------------
 
+In the second evolution, we tackle the consistency problem by retrieving a consistent dataset from PostgreSQL by creating a view.
+
+In PostgreSQL
 
 License
 ============
