@@ -1,0 +1,31 @@
+{
+    "sources": [
+        {
+            "create_table": "CREATE TABLE src_tables (\n    id int,\n    name string,\n    seats int\n) WITH (\n    'connector' = 'jdbc',\n    'url' = 'jdbc:postgresql://',\n    'table-name' = 'tables'\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_pizzas (\n    id int,\n    name string,\n    price int\n) WITH (\n    'connector' = 'jdbc',\n    'url' = 'jdbc:postgresql://',\n    'table-name' = 'pizzas'\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_clients (\n    id int,\n    name string\n) WITH (\n    'connector' = 'jdbc',\n    'url' = 'jdbc:postgresql://',\n    'table-name' = 'clients'\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_table_assignment (\n    id int,\n    client_id int,\n    table_id int,\n    in_time TIMESTAMP(3),\n    out_time TIMESTAMP(3)\n) WITH (\n    'connector' = 'jdbc',\n    'url' = 'jdbc:postgresql://',\n    'table-name' = 'table_assigment'\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_orders (\n    id int,\n    table_assignment_id int,\n    order_time TIMESTAMP(3),\n    pizzas ARRAY<INT>\n) WITH (\n    'connector' = 'jdbc',\n    'url' = 'jdbc:postgresql://',\n    'table-name' = 'orders'\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        }
+    ],
+    "sinks": [
+        {
+            "create_table": "CREATE TABLE order_output (\n    order_id INT,\n    client_name string,\n    table_name string,\n    pizzas string,\n    PRIMARY KEY (order_id) not enforced\n) WITH (\n   'connector' = 'upsert-kafka',\n   'properties.bootstrap.servers' = '',\n   'topic' = 'order_output',\n   'value.format' = 'json',\n   'key.format' = 'json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        }
+    ],
+    "statement": "insert into order_output\nselect \n\tsrc_orders.id order_id,\n\tsrc_clients.name client_name,\n\tsrc_tables.name table_name,\n\tLISTAGG(\n          JSON_OBJECT( \n            'pizza' VALUE src_pizzas.name,\n            'price' VALUE src_pizzas.price \n            )\n        )\nfrom src_orders cross join unnest(src_orders.pizzas) as pizza_unnest(pizza_id) \n  join src_pizzas on src_pizzas.id =  pizza_unnest.pizza_id\n\tjoin src_table_assignment on src_orders.table_assignment_id = src_table_assignment.id\n\tjoin src_clients on src_table_assignment.client_id = src_clients.id\n\tjoin src_tables on src_table_assignment.table_id = src_tables.id\nwhere order_time > CEIL(LOCALTIMESTAMP to hour) - interval '1' hour \nand order_time <= CEIL(LOCALTIMESTAMP to hour) \ngroup by \n    src_orders.id,\n    src_clients.name,\n    src_tables.name\n    ;"
+}

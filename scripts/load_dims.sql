@@ -1,18 +1,18 @@
 create table tables (id serial, name varchar, seats int, primary key(id));
 
-insert into tables (name, seats) VALUES
-	('Donatello', 2),
-	('Michelangelo', 4),
-	('Raffaello', 4),
-	('Leonardo', 8);
+insert into tables (id, name, seats) VALUES
+	(1, 'Donatello', 2),
+	(2, 'Michelangelo', 4),
+	(3, 'Raffaello', 4),
+	(4, 'Leonardo', 8);
 
 create table pizzas (id serial, name varchar, price int, primary key(id));
 
-insert into pizzas (name, price) VALUES
-	('Master Splinter', 8),
-	('Shredder', 7),
-	('Krang', 5),
-	('Bebop and Rocksteady', 6);
+insert into pizzas (id, name, price) VALUES
+	(1, 'Master Splinter', 8),
+	(2, 'Shredder', 7),
+	(3, 'Krang', 5),
+	(4, 'Bebop and Rocksteady', 6);
 
 create table clients (id serial, name varchar, primary key(id));
 
@@ -23,7 +23,7 @@ insert into clients (id, name) values
 	(4, 'Josh Depp');
 
 
-create table table_assigment (
+create table table_assignment (
     id serial, 
     client_id int,
 	table_id int,
@@ -35,7 +35,7 @@ create table table_assigment (
 	);
 
 
-insert into table_assigment(client_id, table_id, in_time, out_time) VALUES
+insert into table_assignment(client_id, table_id, in_time, out_time) VALUES
 	(1, 2, '2023-09-23 20:00:00', '2023-09-23 21:00:00'),
 	(2, 4, '2023-09-23 21:00:00', null),
 	(3, 2, '2023-09-23 21:00:00', null),
@@ -43,13 +43,13 @@ insert into table_assigment(client_id, table_id, in_time, out_time) VALUES
 
 create table orders (
 	id serial,
-	table_assigment_id int,
+	table_assignment_id int,
 	order_time timestamp,
 	pizzas integer[],
-	constraint table_assigment_id_fk foreign key (table_assigment_id) references table_assigment(id)
+	constraint table_assignment_id_fk foreign key (table_assignment_id) references table_assignment(id)
 );
 
-insert into orders (table_assigment_id, order_time, pizzas) VALUES
+insert into orders (table_assignment_id, order_time, pizzas) VALUES
 	(1, '2023-09-23 20:05:00', '{1,3,2}'),
 	(3, '2023-09-23 21:04:00', '{1,1,1,1}'),
 	(2, '2023-09-23 21:05:00', '{2,3,4,1,1,4}'),
