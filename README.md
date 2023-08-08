@@ -113,21 +113,21 @@ Using Aiven we can achieve it by:
 
 0. Run the `.env` file to set the parameters
 
-```
+```bash
 . .env
 ```
 
 
 1. Retrieving the integration id between PostgreSQL, Apache Kafka and Apache Flink
 
-```
+```bash
 PG_FLINK_SI=$(avn service integration-list --json demo-postgresql-ninja | jq -r '.[] | select(.dest == "demo-flink-ninja").service_integration_id')
 KAFKA_FLINK_SI=$(avn service integration-list --json demo-kafka-ninja | jq -r '.[] | select(.dest == "demo-flink-ninja").service_integration_id')
 ```
 
 2. Creating an application named `BasicJDBC`
 
-```
+```bash
 avn service flink create-application demo-flink-ninja \
     --project $PROJECT \
     "{\"name\":\"BasicJDBC\"}"
@@ -135,14 +135,14 @@ avn service flink create-application demo-flink-ninja \
 
 3. Retrieve the application id into `BASIC_JDBC` variable with the help of the Aiven CLI and [jq](https://jqlang.github.io/jq/)
 
-```
+```bash
 BASIC_JDBC=$(avn service flink list-applications demo-flink-ninja   \
     --project $PROJECT | jq -r '.applications[] | select(.name == "BasicJDBC").id')
 ```
 
 Replacing the integration ids in the Application definition file named `01-basic-jdbc.json`
 
-```
+```bash
 sed "s/PG_INTEGRATION_ID/$PG_FLINK_SI/" 'flink-applications/01-basic-jdbc.json' > tmp/01-basic-jdbc.json
 sed "s/KAFKA_INTEGRATION_ID/$KAFKA_FLINK_SI/" 'flink-applications/01-basic-jdbc.json' > tmp/01-basic-jdbc.json
 ```
@@ -150,7 +150,7 @@ sed "s/KAFKA_INTEGRATION_ID/$KAFKA_FLINK_SI/" 'flink-applications/01-basic-jdbc.
 
 Creating the Apache Flink application mapping the PostgreSQL tables and the join statement
 
-```
+```bash
 avn service flink create-application-version demo-flink-ninja   \
     --project $PROJECT                                          \
     --application-id $BASIC_JDBC                                \
@@ -218,14 +218,14 @@ The above application will run in batch, therefore we'll need an external schedu
 
 1. Retrieve the Application version id you want to run, e.g. for the version `1` of the `BasicJDBC` application:
 
-```
+```bash
 BASIC_JDBC_VERSION_1=$(avn service flink get-application demo-flink-ninja \
     --project $PROJECT --application-id $BASIC_JDBC | jq -r '.application_versions[] | select(.version == 3).id')
 ```
 
 2. Create a deployment and store its id in the `DEPLOYMENT_ID` variable
 
-```
+```bash
 avn service flink create-application-deployment  demo-flink-ninja   \
   --project $PROJECT                                                \
   --application-id $BASIC_JDBC                                      \
@@ -234,7 +234,7 @@ avn service flink create-application-deployment  demo-flink-ninja   \
 
 3. Retrieve the deployment id
 
-```
+```bash
 BASIC_JDBC_DEPLOYMENT=$(avn service flink list-application-deployments demo-flink-ninja     \
   --project $PROJECT                                                                        \
   --application-id $BASIC_JDBC | jq  -r ".deployments[] | select(.version_id == \"$BASIC_JDBC_VERSION_1\").id")                                
@@ -242,7 +242,7 @@ BASIC_JDBC_DEPLOYMENT=$(avn service flink list-application-deployments demo-flin
 
 4. Retrieve the deployment status
 
-```
+```bash
 avn service flink get-application-deployment demo-flink-ninja     \
   --project $PROJECT                                              \
   --application-id $BASIC_JDBC                                    \
