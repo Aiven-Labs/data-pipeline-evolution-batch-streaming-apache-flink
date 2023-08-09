@@ -72,7 +72,7 @@ VIEW_BASED_JDBC=$(avn service flink list-applications demo-flink-ninja   \
     --project $PROJECT | jq -r '.applications[] | select(.name == "ViewBasedJDBC").id')
 ```
 
-Replacing the integration ids in the Application definition file named `02-view-based-jdbc.json`
+4. Replacing the integration ids in the Application definition file named `02-view-based-jdbc.json`
 
 ```bash
 sed "s/PG_INTEGRATION_ID/$PG_FLINK_SI/" 'flink-applications/02-view-based-jdbc.json' > tmp/02-view-based-jdbc.json
@@ -80,7 +80,7 @@ sed "s/KAFKA_INTEGRATION_ID/$KAFKA_FLINK_SI/" 'tmp/02-view-based-jdbc.json' > tm
 ```
 
 
-Creating the Apache Flink application mapping the PostgreSQL tables and the join statement
+5. Creating the Apache Flink application mapping the PostgreSQL tables and the join statement
 
 ```bash
 avn service flink create-application-version demo-flink-ninja   \
