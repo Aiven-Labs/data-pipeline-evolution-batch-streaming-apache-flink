@@ -1,11 +1,11 @@
-Data pipeline evolution from batch to streaming with Apache Flink®
-==================================================================
+# Data pipeline evolution from batch to streaming with Apache Flink®
+
 
 The "Data pipeline evolution from batch to streaming with Apache Flink®" repository showcases an example of a data pipeline evolution from batch to streaming using Apache Flink® and Apache Kafka®. The repository provides a series of steps to reproduce a batch data pipeline in Apache Flink and then evolve it to a streaming data pipeline. The story addresses options, limits and edge cases of the solutions proposed.
 
 
-Basic setup
-===========
+## Basic setup
+
 
 To follow the tutorial, you will need:
 
@@ -35,8 +35,8 @@ The above script will:
 To destroy the test environment, execute `scripts/delete_environments.sh`
 
 
-Story
-=====
+## Story
+
 
 This is the story of a data pipeline evolution from batch to streaming.
 
@@ -100,8 +100,8 @@ Obviously that's not great, adding between 5 minutes (lag) and an entire hour de
 
 Therefore now, to minimize latency, they want to move away from the batch based approach and embrace streaming. They will use the combination of Apache Flink® and Apache Kafka®.
 
-1st scenario: Use separated Apache Flink JDBC connectors
---------------------------------------------------------
+## 1st scenario: Use separated Apache Flink JDBC connectors
+
 
 The first test would be to keep the batch approach and just move the joining logic to Apache Flink. 
 We can do it by mapping the five PostgreSQL tables into five Apache Flink table definition using the JDBC connector.
@@ -144,9 +144,9 @@ Compared to the PostgreSQL SQL, The Flink SQL:
 * Replaces the join beween `orders` and `pizzas` with a new join based on the `unnest` operation
 * Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `LISTAGG` (even if the second is not 100% compatible, it allows the creation of a valid JSON)
 
-**Pro and Cons of the solution**
+## Pros and Cons of the solution
 
-Pro:
+Pros:
 
 * ✅ We replicated what the original ETL into Flink
 * ✅ We showcased the Apache Flink technology
@@ -157,8 +157,8 @@ Cons:
 * ❌ Apache Flink will threat each of the JDBC connections as standalone
 * ❌ No predicate pushdown - Each query is executed in isolation - Risk of inconsistency - what if a client changes table during the query time?
 
-2nd scenario: Unique Apache Flink JDBC connector against a PostgreSQL view
---------------------------------------------------------------------------
+## 2nd scenario: Unique Apache Flink JDBC connector against a PostgreSQL view
+
 
 In the second evolution, we tackle the consistency problem by retrieving a consistent dataset from PostgreSQL by creating a view.
 
@@ -182,10 +182,10 @@ where
   and order_time <= CEIL(LOCALTIMESTAMP to hour)
 ```
 
-**Pro and Cons of the solution**
+## Pros and Cons of the solution
 
 
-Pro:
+Pros:
 
 * ✅ We achieved consistency, compared to the previous solution
 
@@ -194,8 +194,7 @@ Cons:
 * ❌ No streaming, basically using Flink as ETL tool replacement
 * ❌ Possible problems when moving huge amount of data at once using the JDBC connector
 
-3rd scenario: CDC connector against the `orders` table + JDBC lookup to the PostgreSQL view
--------------------------------------------------------------------------------------------
+## 3rd scenario: CDC connector against the `orders` table + JDBC lookup to the PostgreSQL view
 
 In the third scenario, we start moving towards the streaming phase. We do it by keeping the PostgreSQL view, but having Flink to react to each order submitted by creating a dedicated Change Data Capture (CDC) flow. Therefore, whenever a new order is caught by the CDC flow, a lookup using the JDBC connector will retrieve the entire order status.
 
@@ -223,7 +222,7 @@ join order_enriched_in FOR SYSTEM_TIME AS of order_enriched_in.proctime
 on order_enriched_in.order_id=orders_cdc.id
 ```
 
-**When using direct CDC in Flink vs Apache Kafka CDC?**
+### When using direct CDC in Flink vs Apache Kafka CDC?
 
 Apache Flink offers a [wide range of CDC connectors](https://ververica.github.io/flink-cdc-connectors/master/) able to track changes from several of the most popular databases including PostgreSQL, Oracle, SQL Server, MySQL amongst others. Therefore including Apache Kafka in the mix seems useless only to over complicate the architecture, but it can be useful where the table being tracked will be used several times across different use cases. Being able to retrieve the data from the database once and play it several times could be useful to limit the overhead on the source database. Moreover there can be small discrepancies between the metadata exposed by the [Kafka Debezium Source Connector in PostgreSQL](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-transaction-metadata) and the ones from the [Flink CDC connector](https://ververica.github.io/flink-cdc-connectors/master/content/connectors/postgres-cdc.html#available-metadata).
 
@@ -237,17 +236,17 @@ Summarizing:
   * Some of the metadata (like [transaction boundaries](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-transaction-metadata)) are only available in the Debezium connector
 
 
-**Pro and Cons of the solution**
+### Pros and Cons of the solution
 
 
-Pro:
+Pros:
 
 * ✅ We achieved streaming, as soon as an order is emitted, it's tracked and the Flink pipeline processes it
 
 Cons:
 * ❌ Even if we are doing a Database lookup, we could get some inconsistent results
 
-**Problem with fast database changes**
+### Problem with fast database changes
 
 ![Flow of data in Lookup](img/lookup-flow.png)
 
@@ -267,7 +266,7 @@ In the above scenario, the following will happen:
 
 1. The new order is added with the following details
 
-```
+```json
 {
     id: 100, 
     table_assigment:4, 
@@ -280,7 +279,7 @@ In the above scenario, the following will happen:
 
 3. Before the Lookup is performed, a new change edits the same id `100` order changing the pizzas to `{1,1,1}`
 
-```
+```json
 {
     id: 100, 
     table_assigment:4, 
@@ -293,15 +292,15 @@ In the above scenario, the following will happen:
 5. The update change in step `3` is tracked by the CDC task tracks the changes into Flink
 6. A new lookup happens, and the `pizzas: {1,1,1}` is pushed again to the sink
 
-This basic example showcases a potential problem to be evaluated with the lookup approach.
+This basic example showcases a potential inconsistency problem to be evaluated with the lookup approach.
 
-License
-============
+## License
+
 Data pipeline evolution from batch to streaming with Apache Flink® is licensed under the Apache license, version 2.0. Full license text is available in the [LICENSE](LICENSE) file.
 
 Please note that the project explicitly does not require a CLA (Contributor License Agreement) from its contributors.
 
-Contact
-============
+## Contact
+
 Bug reports and patches are very welcome, please post them as GitHub issues and pull requests at https://github.com/aiven-labs/data-pipeline-evolution-batch-streaming-apache-flink . 
 To report any possible vulnerabilities or other serious issues please see our [security](SECURITY.md) policy.
