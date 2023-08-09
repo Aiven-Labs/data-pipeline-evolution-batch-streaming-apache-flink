@@ -268,10 +268,10 @@ In the above scenario, the following will happen:
 
 ```json
 {
-    id: 100, 
-    table_assigment:4, 
-    order_time: 23/09/2023 11PM, 
-    pizzas: [2,3,3]
+    "id": 100, 
+    "table_assigment": 4, 
+    "order_time": "23/09/2023 11PM", 
+    "pizzas": [2,3,3]
 }
 ```
 
@@ -281,10 +281,10 @@ In the above scenario, the following will happen:
 
 ```json
 {
-    id: 100, 
-    table_assigment:4, 
-    order_time: 23/09/2023 11PM, 
-    pizzas: [1,1,1]
+    "id": 100, 
+    "table_assigment": 4, 
+    "order_time": "23/09/2023 11PM", 
+    "pizzas": [1,1,1]
 }
 ```
 
