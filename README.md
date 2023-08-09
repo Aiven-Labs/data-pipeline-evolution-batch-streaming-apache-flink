@@ -112,7 +112,7 @@ Check out how to implement the [separated JDBC connectors solution with Aiven fo
 
 The resulting joining SQL is very similar to what was used in PostgreSQL:
 
-```
+```sql
 insert into order_output
 select 
 	src_orders.id order_id,
@@ -148,14 +148,14 @@ Compared to the PostgreSQL SQL, The Flink SQL:
 
 Pro:
 
-* We replicated what the original ETL into Flink
-* We showcased the Apache Flink technology
+* ✅ We replicated what the original ETL into Flink
+* ✅ We showcased the Apache Flink technology
 
 Cons:
-* Still batching
-* Requires external scheduler
-* Apache Flink will threat each of the JDBC connections as standalone
-* No predicate pushdown - Each query is executed in isolation - Risk of inconsistency - what if a client changes table during the query time?
+* ❌ Still batching
+* ❌ Requires external scheduler
+* ❌ Apache Flink will threat each of the JDBC connections as standalone
+* ❌ No predicate pushdown - Each query is executed in isolation - Risk of inconsistency - what if a client changes table during the query time?
 
 2nd scenario: Unique Apache Flink JDBC connector against a PostgreSQL view
 --------------------------------------------------------------------------
@@ -169,7 +169,7 @@ Check out how to implement the [Unique JDBC connector against a PostgreSQL view 
 In this case, since the joining logic is defined in PostgreSQL, the result Flink SQL is very minimal, with a filter to select only the latest changes:
 
 
-```
+```sql
 insert into order_output
 select 
   order_id, 
@@ -187,12 +187,12 @@ where
 
 Pro:
 
-* We achieved consistency, compared to the previous solution
+* ✅ We achieved consistency, compared to the previous solution
 
 Cons:
-* Still batching
-* No streaming, basically using Flink as ETL tool replacement
-* Possibly problems when moving huge amount of data at once using the JDBC connector
+* ❌ Still batching
+* ❌ No streaming, basically using Flink as ETL tool replacement
+* ❌ Possible problems when moving huge amount of data at once using the JDBC connector
 
 
 
