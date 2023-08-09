@@ -103,11 +103,46 @@ Therefore now, to minimize latency, they want to move away from the batch based 
 1st scenario: Use separated Apache Flink JDBC connectors
 --------------------------------------------------------
 
-The first test would be to keep the batch approach and just move to Apache Flink. We can do it by mapping the five PostgreSQL tables into five Apache Flink table definition using the JDBC connector.
+The first test would be to keep the batch approach and just move the joining logic to Apache Flink. 
+We can do it by mapping the five PostgreSQL tables into five Apache Flink table definition using the JDBC connector.
 
 ![Apache Flink tables using the JDBC connector](img/direct-jdbc.png)
 
 Check out how to implement the [separated JDBC connectors solution with Aiven for Apache Flink](how-to-aiven/01-basic-jdbc.md). 
+
+The resulting joining SQL is very similar to what was used in PostgreSQL:
+
+```
+insert into order_output
+select 
+	src_orders.id order_id,
+	src_clients.name client_name,
+	src_tables.name table_name,
+	LISTAGG(
+          JSON_OBJECT( 
+            'pizza' VALUE src_pizzas.name,
+            'price' VALUE src_pizzas.price 
+            )
+        )
+from src_orders cross join unnest(src_orders.pizzas) as pizza_unnest(pizza_id) 
+  join src_pizzas on src_pizzas.id =  pizza_unnest.pizza_id
+	join src_table_assignment on src_orders.table_assignment_id = src_table_assignment.id
+	join src_clients on src_table_assignment.client_id = src_clients.id
+	join src_tables on src_table_assignment.table_id = src_tables.id
+where order_time > CEIL(LOCALTIMESTAMP to hour) - interval '1' hour 
+
+group by 
+    src_orders.id,
+    src_clients.name,
+    src_tables.name
+    ;
+```
+
+Compared to the PostgreSQL SQL, The Flink SQL:
+
+* Replaces the `CURRENT_TIMESTAMP` with `LOCALTIMESTAMP` and the `TRUNC` with the `CEIL` function
+* Replaces the join beween `orders` and `pizzas` with a new join based on the `unnest` operation
+* Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `LISTAGG` (even if the second is not 100% compatible, it allows the creation of a valid JSON)
 
 **Pro and Cons of the solution**
 
@@ -130,6 +165,22 @@ In the second evolution, we tackle the consistency problem by retrieving a consi
 ![JDBC with View](/img/jdbc-with-view.png)
 
 Check out how to implement the [Unique JDBC connector against a PostgreSQL view with Aiven for Apache Flink](how-to-aiven/02-view-based-jdbc.md). 
+
+In this case, since the joining logic is defined in PostgreSQL, the result Flink SQL is very minimal, with a filter to select only the latest changes:
+
+
+```
+insert into order_output
+select 
+  order_id, 
+  client_name, 
+  table_name, 
+  pizzas 
+from order_enriched_in 
+where 
+  order_time > CEIL(LOCALTIMESTAMP to hour) - interval '1' hour 
+  and order_time <= CEIL(LOCALTIMESTAMP to hour)
+```
 
 **Pro and Cons of the solution**
 
