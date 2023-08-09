@@ -271,7 +271,7 @@ In the above scenario, the following will happen:
     id: 100, 
     table_assigment:4, 
     order_time: 23/09/2023 11PM, 
-    pizzas: {2,3,3}
+    pizzas: [2,3,3]
 }
 ```
 
@@ -284,7 +284,7 @@ In the above scenario, the following will happen:
     id: 100, 
     table_assigment:4, 
     order_time: 23/09/2023 11PM, 
-    pizzas: {1,1,1}
+    pizzas: [1,1,1]
 }
 ```
 
