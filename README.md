@@ -194,7 +194,50 @@ Cons:
 * ❌ No streaming, basically using Flink as ETL tool replacement
 * ❌ Possible problems when moving huge amount of data at once using the JDBC connector
 
+3rd scenario: CDC connector against the `orders` table + JDBC lookup to the PostgreSQL view
+-------------------------------------------------------------------------------------------
 
+In the third scenario, we start moving towards the streaming phase. We do it by keeping the PostgreSQL view, but having Flink to reach to each order submitted by creating a dedicated Change Data Capture (CDC) flow.
+
+We can achieve the CDC using:
+
+* the [Apache Flink CDC connector for PostgreSQL](https://docs.aiven.io/docs/products/flink/howto/pg-cdc-connector)
+* including Apache Kafka in the picture and creating a [Debezium Source connector to PostgreSQL](https://docs.aiven.io/docs/products/kafka/kafka-connect/howto/debezium-source-connector-pg)
+
+![Flink with a CDC connector to the orders table and JDBC connector to the view](/img/flink-cdc-order-jdbc.png)
+
+Check out how to implement the [Unique JDBC connector against a PostgreSQL view with Aiven for Apache Flink](how-to-aiven/02-view-based-jdbc.md). 
+
+![Kafka CDC PostgreSQL - Flink with a Kafka connector to the orders topic and JDBC connector to the view](/img/kafka-cdc-flink-kafka-jdbc.png)
+
+
+In this case, since the joining logic is defined in PostgreSQL, the result Flink SQL is very minimal, with a filter to select only the latest changes:
+
+
+```sql
+insert into order_output
+select 
+  order_id, 
+  client_name, 
+  table_name, 
+  pizzas 
+from order_enriched_in 
+where 
+  order_time > CEIL(LOCALTIMESTAMP to hour) - interval '1' hour 
+  and order_time <= CEIL(LOCALTIMESTAMP to hour)
+```
+
+**Pro and Cons of the solution**
+
+
+Pro:
+
+* ✅ We achieved consistency, compared to the previous solution
+
+Cons:
+* ❌ Still batching
+* ❌ No streaming, basically using Flink as ETL tool replacement
+* ❌ Possible problems when moving huge amount of data at once using the JDBC connector
 
 License
 ============
