@@ -245,7 +245,9 @@ Pro:
 * ✅ We achieved streaming, as soon as an order is emitted, it's tracked and the Flink pipeline processes it
 
 Cons:
-* ❌ Even if we are doing a Database lookup, we could get some inconsistent results, let's analyse the overall flow
+* ❌ Even if we are doing a Database lookup, we could get some inconsistent results
+
+**Problem with fast database changes**
 
 ![Flow of data in Lookup](img/lookup-flow.png)
 
