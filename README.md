@@ -288,11 +288,13 @@ In the above scenario, the following will happen:
 }
 ```
 
-4. The lookup happens, and, since the view is consistent with the table, the `pizzas: {1,1,1}` is pushed to the sink
+4. The lookup happens, and, since the view is consistent with the table, the `"pizzas": [1,1,1]` is pushed to the sink
 5. The update change in step `3` is tracked by the CDC task tracks the changes into Flink
-6. A new lookup happens, and the `pizzas: {1,1,1}` is pushed again to the sink
+6. A new lookup happens, and the `"pizzas": [1,1,1]` is pushed again to the sink
 
-This basic example showcases a potential inconsistency problem to be evaluated with the lookup approach.
+This basic example showcases a potential inconsistency problem to be evaluated when using the lookup approach.
+
+## 4th scenario: Outbox pattern and the CDC connector
 
 ## License
 
