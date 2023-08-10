@@ -296,6 +296,17 @@ This basic example showcases a potential inconsistency problem to be evaluated w
 
 ## 4th scenario: Outbox pattern and the CDC connector
 
+In the fourth scenario we are looking to solve the consistency problem defined above. The standard approach is to use the **outbox pattern** where, every time we insert an line into the `order` table, we also write the result of the join into an outbox table, which is then CDC'ed either via direct Flink or Apache Kafka.
+
+* Using the Apache Flink CDC connector
+
+  ![Outbox Pattern with Apache Flink CDC](img/outbox-flink.png)
+
+* Using the Apache Kafka Debezium connector and the Apache Flink Kafka connector
+
+  ![Outbox Pattern with Apache Kafka CDC and Flink Kafka connector](img/outbox-kafka.png)
+
+
 ## License
 
 Data pipeline evolution from batch to streaming with Apache Flink® is licensed under the Apache license, version 2.0. Full license text is available in the [LICENSE](LICENSE) file.
