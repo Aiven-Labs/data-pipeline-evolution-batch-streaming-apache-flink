@@ -155,7 +155,14 @@ Cons:
 * ❌ Still batching
 * ❌ Requires external scheduler
 * ❌ Apache Flink will threat each of the JDBC connections as standalone
-* ❌ No predicate pushdown - Each query is executed in isolation - Risk of inconsistency - what if a client changes table during the query time?
+* ❌ No predicate pushdown - Each query is executed in isolation
+* ❌ Possible problems with huge data volumes hosting lots of not filtered data
+
+  ```
+  [ERROR] Could not execute SQL statement. Reason:
+  java.lang.OutOfMemoryError: Java heap space. A heap space-related out-of-memory error has occurred. This can mean two things: either Flink Master requires a larger size of JVM heap space or there is a memory leak. In the first case, 'jobmanager.memory.heap.size' can be used to increase the amount of available heap memory. If the problem is not resolved by increasing the heap size, it indicates a memory leak in the user code or its dependencies which needs to be investigated and fixed. The Flink Master has to be shutdown...
+  ```
+* ❌ Risk of inconsistency - what if a client changes table during the query time?
 
 ## 2nd scenario: Unique Apache Flink JDBC connector against a PostgreSQL view
 
@@ -296,7 +303,7 @@ This basic example showcases a potential inconsistency problem to be evaluated w
 
 ## 4th scenario: Outbox pattern and the CDC connector
 
-In the fourth scenario we are looking to solve the consistency problem defined above. The standard approach is to use the **outbox pattern** where, every time we insert an line into the `order` table, we also write the result of the join into an outbox table, which is then CDC'ed either via direct Flink or Apache Kafka.
+In the fourth scenario we are looking to solve the consistency problem defined above. The standard approach is to use the **outbox pattern** where, every time we insert an line into the `order` table, we also write the result of the join into an outbox table, which is then CDC'ed either via direct Flink or Apache Kafka. The pro of the outbox patter is that it guarantees consistency since all DML operations can happen within the same transaction.
 
 * Using the Apache Flink CDC connector
 
@@ -306,6 +313,57 @@ In the fourth scenario we are looking to solve the consistency problem defined a
 
   ![Outbox Pattern with Apache Kafka CDC and Flink Kafka connector](img/outbox-kafka.png)
 
+### Requires a change in the DML statements
+
+The outbox pattern requires modification in the DML operations (insert/update/deletes) in order to feed both the original tables as well as the outbox table. If, in our example, we create an outbox table called `orders_outbox` as
+
+```
+create table orders_outbox (
+  order_id int,
+  client_name text,
+  table_name text,
+  pizzas json
+);
+```
+
+And, every time we receive an order, we'll have a transaction like the below that inserts it into the `ORDERS` table and then fetches the joined data from all the tables to insert into the `ORDERS_OUTBOX` table:
+
+```
+BEGIN;
+DO
+  $$
+  DECLARE
+    INSERTED_ORDER_ID INT;
+  BEGIN
+
+  INSERT INTO ORDERS 
+    (TABLE_ASSIGNMENT_ID, ORDER_TIME, PIZZAS) 
+    VALUES (2, CURRENT_TIMESTAMP, '{1,2,3,4}') RETURNING id into INSERTED_ORDER_ID;
+  INSERT INTO ORDERS_OUTBOX
+    select 
+      orders.id order_id,
+      clients.name client_name,
+      tables.name table_name,
+      JSON_AGG(
+              JSON_BUILD_OBJECT( 
+                'pizza', pizzas.name,
+                'price', pizzas.price
+                )
+            )
+    from orders 
+      join table_assignment on orders.table_assignment_id = table_assignment.id
+      join pizzas on pizzas.id = ANY (orders.pizzas)
+      join clients on table_assignment.client_id = clients.id
+      join tables on table_assignment.table_id = tables.id
+    where orders.id=INSERTED_ORDER_ID 
+    group by 
+        orders.id,
+        clients.name,
+        tables.name;
+  END;
+  $$;
+END; 
+```
 
 ## License
 

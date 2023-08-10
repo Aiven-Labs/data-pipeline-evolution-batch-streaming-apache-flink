@@ -1,0 +1,19 @@
+{
+    "sources": [
+        {
+            "create_table": "CREATE TABLE order_enriched_in (\n    order_id int,\n    client_name string,\n    table_name string,\n    order_time timestamp(3),\n    proctime as proctime(),\n    json_agg string,\n    PRIMARY KEY (order_id) not enforced\n) WITH (\n    'connector' = 'jdbc',\n    'url' = 'jdbc:postgresql://',\n    'table-name' = 'order_joining_view'\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE orders_cdc (\n    id int,\n    table_assignment_id int,\n    order_time TIMESTAMP(3),\n    PRIMARY KEY (id) not enforced,\n    WATERMARK FOR order_time AS order_time - INTERVAL '5' SECOND\n) WITH (\n  'connector' = 'postgres-cdc',\n  'database-name' = 'defaultdb',\n  'hostname' = '',\n  'password' = '',\n  'schema-name' = 'public',\n  'table-name' = 'orders',\n  'username' = ''\n)",
+            "integration_id": "PG_INTEGRATION_ID"
+        }
+    ],
+    "sinks": [
+        {
+            "create_table": "CREATE TABLE order_output (\n    order_id INT,\n    client_name string,\n    table_name string,\n    pizzas string,\n    PRIMARY KEY (order_id) not enforced\n) WITH (\n   'connector' = 'upsert-kafka',\n   'properties.bootstrap.servers' = '',\n   'topic' = 'order_output',\n   'value.format' = 'json',\n   'key.format' = 'json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        }
+    ],
+    "statement": "INSERT INTO order_output\nselect order_id, client_name, table_name, json_agg \nfrom orders_cdc\njoin order_enriched_in FOR SYSTEM_TIME AS of order_enriched_in.proctime\non order_enriched_in.order_id=orders_cdc.id"
+}
