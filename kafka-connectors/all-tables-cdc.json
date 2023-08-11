@@ -1,0 +1,15 @@
+{
+    "name": "my_order_source_deb_1",
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "database.hostname": "PG_HOST",
+    "database.port": "PG_PORT",
+    "database.user": "avnadmin",
+    "database.password": "PG_PASSWORD",
+    "database.dbname": "defaultdb",
+    "database.server.name": "my_pg1",
+    "plugin.name": "pgoutput",
+    "slot.name": "mydeb_slot_1",
+    "publication.name": "mydeb_pub_1",
+    "publication.autocreate.mode": "filtered",
+    "table.include.list": "public.orders,public.tables,public.clients,public.pizzas,public.table_assignment"
+}

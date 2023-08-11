@@ -118,7 +118,7 @@ select
 	src_orders.id order_id,
 	src_clients.name client_name,
 	src_tables.name table_name,
-	LISTAGG(
+	JSON_ARRAYAGG(
           JSON_OBJECT( 
             'pizza' VALUE src_pizzas.name,
             'price' VALUE src_pizzas.price 
@@ -142,7 +142,7 @@ Compared to the PostgreSQL SQL, The Flink SQL:
 
 * Replaces the `CURRENT_TIMESTAMP` with `LOCALTIMESTAMP` and the `TRUNC` with the `CEIL` function
 * Replaces the join beween `orders` and `pizzas` with a new join based on the `unnest` operation
-* Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `LISTAGG` (even if the second is not 100% compatible, it allows the creation of a valid JSON)
+* Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `JSON_ARRAYAGG`
 
 ## Pros and Cons of the solution
 
@@ -458,6 +458,102 @@ END;
 ```
 
 Once created the Apache Kafka Debezium source connector and executed the above, a new message will appear in the `my_pg.messages` topic (concatenation of server prefix and `messages`) containing the logical decoding message defined above in the `message.content` part of the value payload.
+
+### Pros and Cons of the solution
+
+
+Pros:
+
+* ✅ We achieved streaming, as soon as an order is emitted, it's tracked and the Flink pipeline processes it
+* ✅ Data is stored once
+
+Cons:
+* ❌ We require a change in the DML operation, not always possible
+
+## 6th scenario: Direct table CDC and consistency in Apache Flink
+
+In the sixt scenario, we remove the need for changes in DML operation by creating CDC connectors from Apache Flink (or Apache Kafka) and recreating consistent joins in Apache Flink. 
+
+![Direct table CDC and consistency in Apache Flink](img/all-cdc-to-flink.png)
+
+While technically possible with the direct Apache Flink CDC connector, some limitation like the lack of support for arrays made the selected solution including Apache Kafka Debezium connector.
+
+Check out how to implement the [Outbox pattern and the CDC connector with Aiven for Apache Kafka and Aiven for Apache Flink](how-to-aiven/05-kafka-flink-cdc-outbox-logical-decoding.md).
+
+In this solution, the transformation SQL below is complex since we have to recreate the consistency by either:
+
+* creating [temporal joins](https://nightlies.apache.org/flink/flink-docs-release-1.15/docs/dev/table/sql/queries/joins/#temporal-joins) based on the transaction time
+* adding a more complex logic to evaluate the transaction ids, and the [rich transaction metadata](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-transaction-metadata) provided by the Debezium connector. In this second case, we don't only have a transaction id, but also a count of the events in the transaction, that we can use to emit changes only when all the events in a transaction have been read. 
+
+
+The following SQL showcase the temporal join use case:
+
+```sql
+INSERT INTO order_output
+select 
+  src_orders.id order_id,
+	src_clients.name client_name,
+	src_tables.name table_name,
+	JSON_ARRAYAGG( 
+          JSON_OBJECT( 
+            'pizza' VALUE src_pizzas.name,
+            'price' VALUE src_pizzas.price 
+            )
+        )
+from src_orders cross join unnest(src_orders.pizzas) as pizza_unnest(pizza_id) 
+  join src_pizzas FOR SYSTEM_TIME AS of src_orders.event_time  
+  on src_pizzas.id =  pizza_unnest.pizza_id
+  join src_table_assignment  FOR SYSTEM_TIME AS of src_orders.event_time 
+  on src_orders.table_assignment_id = src_table_assignment.id
+  join src_clients  FOR SYSTEM_TIME AS of src_orders.event_time 
+  on src_table_assignment.client_id = src_clients.id
+  join src_tables  FOR SYSTEM_TIME AS of src_orders.event_time 
+  on src_table_assignment.table_id = src_tables.id
+group by src_orders.id,
+  src_clients.name,
+	src_tables.name;
+```
+
+### Pros and Cons of the timestamp solution
+
+
+Pros:
+
+* ✅ No Changes needed in DML
+* ✅ Changes are read in streaming mode from the database
+
+Cons:
+* ❌ By default, results are not emitted until all watermarks on all tables present in the join have been passed
+
+From the [docs](https://nightlies.apache.org/flink/flink-docs-release-1.17/docs/dev/table/sql/queries/joins/#processing-time-temporal-join)
+
+> Note The reason why the FOR SYSTEM_TIME AS OF syntax used in temporal join with latest version of any table/view is not support is only the semantic consideration, because the join processing for left stream doesn’t wait for the complete snapshot of temporal table, this may mislead users in production environment. The processing-time temporal join by temporal table function also exists same semantic problem, but it has been alive for a long time, thus we support it from the perspective of compatibility.
+
+Basically the following is happening:
+
+![Idle watermarks problem](img/idle-watermarks-problem.png)
+
+Possible solutions:
+
+* [Idle Timeout](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/config/#table-exec-source-idle-timeout) - risk of losing consistency for temporary network/consumption hiccups
+* [Interval Joins](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/joins/#interval-joins) - risk of losing consistency for temporary network/consumption hiccups 
+* Database triggers to periodically insert/update a row in each of the table - additional load in the database
+
+
+### Pros and Cons of the transaction id joins solution
+
+
+Pros:
+
+* ✅ No Changes needed in DML
+* ✅ Changes are read in streaming mode from the database
+* ✅ Results are emitted once the full transaction has been processed
+
+
+Cons:
+* ❌ Complex query to handle in Flink
+* ❌ Possibly large state to manage
+
 
 ## License
 

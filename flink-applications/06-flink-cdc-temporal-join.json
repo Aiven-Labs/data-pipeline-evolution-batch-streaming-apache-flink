@@ -1,0 +1,31 @@
+{
+    "sources": [
+        {
+            "create_table": "CREATE TABLE src_table_assignment (\n    id int,\n    client_id int,\n    table_id int,\n    in_time bigint,\n    out_time bigint,\n    PRIMARY KEY (id) not enforced,\n    event_time TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,\n    WATERMARK for event_time as event_time\n) WITH (\n    'connector' = 'kafka',\n    'properties.bootstrap.servers' = '',\n    'scan.startup.mode' = 'earliest-offset',\n    'topic' = 'my_pg3.public.table_assignment',\n    'value.format' = 'debezium-json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_orders (\n    id int,\n    table_assignment_id int,\n    order_time bigint,\n    pizzas ARRAY<INT>,\n    PRIMARY KEY (id) not enforced,\n    event_time TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,\n    WATERMARK for event_time as event_time\n) WITH (\n    'connector' = 'kafka',\n    'properties.bootstrap.servers' = '',\n    'scan.startup.mode' = 'earliest-offset',\n    'topic' = 'my_pg3.public.orders',\n    'value.format' = 'debezium-json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_pizzas (\n    id int,\n    name string,\n    price int,\n    PRIMARY KEY (id) not enforced,\n    event_time TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,\n    WATERMARK for event_time as event_time\n) WITH (\n    'connector' = 'kafka',\n    'properties.bootstrap.servers' = '',\n    'scan.startup.mode' = 'earliest-offset',\n    'topic' = 'my_pg3.public.pizzas',\n    'value.format' = 'debezium-json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_tables (\n    id int,\n    name string,\n    PRIMARY KEY (id) not enforced,\n    event_time TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,\n    WATERMARK for event_time as event_time\n) WITH (\n    'connector' = 'kafka',\n    'properties.bootstrap.servers' = '',\n    'scan.startup.mode' = 'earliest-offset',\n    'topic' = 'my_pg3.public.tables',\n    'value.format' = 'debezium-json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        },
+        {
+            "create_table": "CREATE TABLE src_clients (\n    id int,\n    name string,\n    PRIMARY KEY (id) not enforced,\n    event_time TIMESTAMP_LTZ(3) METADATA FROM 'value.source.timestamp' VIRTUAL,\n    WATERMARK for event_time as event_time\n) WITH (\n    'connector' = 'kafka',\n    'properties.bootstrap.servers' = '',\n    'scan.startup.mode' = 'earliest-offset',\n    'topic' = 'my_pg3.public.clients',\n    'value.format' = 'debezium-json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        }
+    ],
+    "sinks": [
+        {
+            "create_table": "CREATE TABLE order_output (\n    order_id INT,\n    client_name string,\n    table_name string,\n    pizzas string,\n    PRIMARY KEY (order_id) not enforced\n) WITH (\n   'connector' = 'upsert-kafka',\n   'properties.bootstrap.servers' = '',\n   'topic' = 'order_output',\n   'value.format' = 'json',\n   'key.format' = 'json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        }
+    ],
+    "statement": "INSERT INTO order_output\nselect \n  src_orders.id order_id,\n\tsrc_clients.name client_name,\n\tsrc_tables.name table_name,\n\tJSON_ARRAYAGG( \n          JSON_OBJECT( \n            'pizza' VALUE src_pizzas.name,\n            'price' VALUE src_pizzas.price \n            )\n        )\nfrom src_orders cross join unnest(src_orders.pizzas) as pizza_unnest(pizza_id) \n  join src_pizzas FOR SYSTEM_TIME AS of src_orders.event_time  \n  on src_pizzas.id =  pizza_unnest.pizza_id\n  join src_table_assignment  FOR SYSTEM_TIME AS of src_orders.event_time \n  on src_orders.table_assignment_id = src_table_assignment.id\n  join src_clients  FOR SYSTEM_TIME AS of src_orders.event_time \n  on src_table_assignment.client_id = src_clients.id\n  join src_tables  FOR SYSTEM_TIME AS of src_orders.event_time \n  on src_table_assignment.table_id = src_tables.id\ngroup by src_orders.id,\n  src_clients.name,\n\tsrc_tables.name;"
+}

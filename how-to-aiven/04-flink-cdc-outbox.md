@@ -44,7 +44,7 @@ sed "s/KAFKA_INTEGRATION_ID/$KAFKA_FLINK_SI/" 'tmp/04-flink-cdc-outbox.json' > t
 5. After connecting to the PostgreSQL database (with `avn service cli demo-postgresql-ninja`), creating the `dbz_publication` for the `orders_outbox` table with:
 
 ```
-CREATE PUBLICATION dbz_publication FOR TABLE orders;
+CREATE PUBLICATION dbz_publication FOR TABLE orders_outbox;
 ```
 
 If the publication is already existing, you can drop and recreate it with:

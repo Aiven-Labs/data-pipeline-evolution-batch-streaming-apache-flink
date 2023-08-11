@@ -80,7 +80,7 @@ select
 	src_orders.id order_id,
 	src_clients.name client_name,
 	src_tables.name table_name,
-	LISTAGG(
+	JSON_ARRAYAGG(
           JSON_OBJECT( 
             'pizza' VALUE src_pizzas.name,
             'price' VALUE src_pizzas.price 
@@ -104,7 +104,7 @@ Compared to the PostgreSQL SQL, The Flink SQL:
 
 * Replaces the `CURRENT_TIMESTAMP` with `LOCALTIMESTAMP` and the `TRUNC` with the `CEIL` function
 * Replaces the join beween `orders` and `pizzas` with a new join based on the `unnest` operation
-* Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `LISTAGG` (even if the second is not 100% compatible, it allows the creation of a valid JSON) 
+* Replaces the `JSON_BUILD_OBJECT` and `JSON_AGG` with `JSON_OBJECT` and `JSON_ARRAYAGG` 
 
 **Running the Application**
 
