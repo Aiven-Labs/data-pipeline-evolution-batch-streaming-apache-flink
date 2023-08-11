@@ -313,11 +313,20 @@ In the fourth scenario we are looking to solve the consistency problem defined a
 
   ![Outbox Pattern with Apache Kafka CDC and Flink Kafka connector](img/outbox-kafka.png)
 
+In both cases (direct Flink CDC or via Kafka), the Flink SQL is extremely basic, since we have in input the data as we want to shape it for the output.
+
+```sql
+INSERT INTO order_output
+select * from order_outbox;
+```
+
+Check out how to implement the [Outbox pattern and the CDC connector with Aiven for Apache Flink](how-to-aiven/04-flink-cdc-outbox.md). 
+
 ### Requires a change in the DML statements
 
 The outbox pattern requires modification in the DML operations (insert/update/deletes) in order to feed both the original tables as well as the outbox table. If, in our example, we create an outbox table called `orders_outbox` as
 
-```
+```sql
 create table orders_outbox (
   order_id int,
   client_name text,
@@ -328,7 +337,7 @@ create table orders_outbox (
 
 And, every time we receive an order, we'll have a transaction like the below that inserts it into the `ORDERS` table and then fetches the joined data from all the tables to insert into the `ORDERS_OUTBOX` table:
 
-```
+```sql
 BEGIN;
 DO
   $$
@@ -364,6 +373,91 @@ DO
   $$;
 END; 
 ```
+
+### Pros and Cons of the solution
+
+
+Pros:
+
+* ✅ We achieved streaming, as soon as an order is emitted, it's tracked and the Flink pipeline processes it
+
+Cons:
+* ❌ We require a change in the DML operation, not always possible
+* ❌ We store the data twice (one for `orders`, one for `order_outbox`)
+
+## 5th scenario: Outbox pattern with PostgreSQL logical decoding messages and Kafka CDC connector
+
+In the fifth scenario, we remove the need for double storage that we had in the previous solution, by using PostgreSQL logical decoding messages and Debezium to read them into Apache Kafka. 
+
+![Outbox pattern with PostgreSQL logical decoding messages and Kafka CDC connector](img/logical-decoding-messages-kafka-flink.png)
+
+While technically possible with the direct Apache Flink CDC connector, the selected solution includes Apache Kafka Debezium connector.
+
+Check out how to implement the [Outbox pattern and the CDC connector with Aiven for Apache Kafka and Aiven for Apache Flink](how-to-aiven/05-kafka-flink-cdc-outbox-logical-decoding.md).
+
+In this solution, the transformation SQL below needs to:
+
+* decode the `message.content` section from base64 with the `FROM_BASE64` function
+* extract the relevant pieces of information from the payload using the `JSON_VALUE` and `JSON_QUERY` functions
+
+```sql
+INSERT into order_output
+select 
+    JSON_VALUE(FROM_BASE64(message.content), '$.order_id'  RETURNING INT),
+    JSON_VALUE(FROM_BASE64(message.content), '$.client_name'),
+    JSON_VALUE(FROM_BASE64(message.content), '$.table_name'), 
+    JSON_QUERY(FROM_BASE64(message.content), '$.pizzas[*]')
+from pg_messages
+```
+
+
+### Requires a change in the DML statements
+
+The outbox pattern using logical decoding messages doesn't require an additional table but still requires a modification in the DML operations (insert/update/deletes) in order to emit the new message and feed the original tables. If, in our example, every time we receive an order, we'll have a transaction like the below that inserts it into the `ORDERS` table and then fetches the joined data from all the tables to creates a new logical decoding message:
+
+```sql
+BEGIN;
+DO
+  $$
+  DECLARE
+    INSERTED_ORDER_ID INT;
+    JSON_ORDER text;
+  BEGIN
+
+  INSERT INTO ORDERS 
+    (TABLE_ASSIGNMENT_ID, ORDER_TIME, PIZZAS) 
+    VALUES (2, CURRENT_TIMESTAMP, '{1,2,3,4}') RETURNING id into INSERTED_ORDER_ID;
+  
+  select JSONB_BUILD_OBJECT(
+      'order_id', orders.id,
+      'client_name', clients.name,
+      'table_name', tables.name,
+      'pizzas',
+      JSONB_AGG(
+              JSONB_BUILD_OBJECT( 
+                'pizza', pizzas.name,
+                'price', pizzas.price
+                )
+            )
+    ) into JSON_ORDER
+    from orders 
+      join table_assignment on orders.table_assignment_id = table_assignment.id
+      join pizzas on pizzas.id = ANY (orders.pizzas)
+      join clients on table_assignment.client_id = clients.id
+      join tables on table_assignment.table_id = tables.id
+    where orders.id=INSERTED_ORDER_ID 
+    group by 
+        orders.id,
+        clients.name,
+        tables.name;
+
+    SELECT * FROM pg_logical_emit_message(true,'myprefix',JSON_ORDER) into JSON_ORDER;
+  END;
+  $$;
+END; 
+```
+
+Once created the Apache Kafka Debezium source connector and executed the above, a new message will appear in the `my_pg.messages` topic (concatenation of server prefix and `messages`) containing the logical decoding message defined above in the `message.content` part of the value payload.
 
 ## License
 

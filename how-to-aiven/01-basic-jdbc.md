@@ -1,7 +1,7 @@
 Basic JDBC solution with Aiven for Apache Flink
 ===============================================
 
-![Apache Flink tables using the JDBC connector](img/direct-jdbc.png)
+![Apache Flink tables using the JDBC connector](/img/direct-jdbc.png)
 
 We can deploy the Basic JDBC solution with Aiven for Apache Flink by:
 

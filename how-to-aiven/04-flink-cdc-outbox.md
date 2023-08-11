@@ -1,7 +1,7 @@
 Apache Flink CDC connector against the outbox table
 ==========================================================================================
 
-![Outbox Pattern with Apache Flink CDC](img/outbox-flink.png)
+![Outbox Pattern with Apache Flink CDC](/img/outbox-flink.png)
 
 We can deploy the Flink CDC connector against the `orders_outbox` outbox table with Aiven for Apache Flink by:
 
@@ -65,56 +65,49 @@ avn service flink create-application-version demo-flink-ninja   \
 
 The `04-flink-cdc-outbox.json` contains the application definition, and, in particular:
 
-* One Flink source table definitions using the JDBC connector, mapping the `ORDER_JOINING_VIEW` view in a table named `order_enriched_in`
+* One Flink source table definitions using the PostgreSQL CDC connector, mapping the `ORDERS_OUTBOX` PostgreSQL table in a Flink table named `order_outbox`
 
 ```
-CREATE TABLE order_enriched_in (
-    order_id int,
-    client_name string,
-    table_name string,
-    order_time timestamp(3),
-    proctime as proctime(),
-    json_agg string,
-    PRIMARY KEY (order_id) not enforced
-) WITH (
-    'connector' = 'jdbc',
-    'url' = 'jdbc:postgresql://',
-    'table-name' = 'order_joining_view'
-)
-```
-
-We added the `proctime` column to be able to perform a lookup whenever a new order arrives from the CDC stream.
-
-* One Flink source table definition using the PostgreSQL CDC connector, mapping the `orders` PG table in the `orders_cdc` flink table
-
-```
-CREATE TABLE orders_cdc (
-    id int,
-    table_assignment_id int,
-    order_time TIMESTAMP(3),
-    PRIMARY KEY (id) not enforced
+CREATE TABLE order_outbox (
+  order_id int,
+  client_name string,
+  table_name string,
+  pizzas string
 ) WITH (
   'connector' = 'postgres-cdc',
   'database-name' = 'defaultdb',
   'hostname' = '',
   'password' = '',
   'schema-name' = 'public',
-  'table-name' = 'orders',
+  'table-name' = 'orders_outbox',
   'username' = ''
 )
 ```
 
 * One sink table writing to a kafka topic named `order_output` with the following structure
 
+```
+CREATE TABLE order_output (
+    order_id INT,
+    client_name string,
+    table_name string,
+    pizzas string,
+    PRIMARY KEY (order_id) not enforced
+) WITH (
+   'connector' = 'upsert-kafka',
+   'properties.bootstrap.servers' = '',
+   'topic' = 'order_output',
+   'value.format' = 'json',
+   'key.format' = 'json'
+)
+```
+
 
 * The SQL transformation logic as
 
 ```sql
 INSERT INTO order_output
-select order_id, client_name, table_name, json_agg 
-from orders_cdc
-join order_enriched_in FOR SYSTEM_TIME AS of order_enriched_in.proctime
-on order_enriched_in.order_id=orders_cdc.id
+select * from order_outbox;
 ```
 
 The transformation SQL only performs the JDBC lookup every time an order is entered and tracked by the CDC pipeline.
@@ -156,4 +149,4 @@ avn service flink get-application-deployment demo-flink-ninja     \
   --deployment-id $FLINK_CDC_OUTBOX_DEPLOYMENT | jq '.status'
 ```
 
-The app should be in `RUNNING` state and then go in `FINISHED` state
+The app should be in `RUNNING` state 

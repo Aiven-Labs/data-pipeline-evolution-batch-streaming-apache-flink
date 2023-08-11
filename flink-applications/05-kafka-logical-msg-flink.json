@@ -1,0 +1,15 @@
+{
+    "sources": [
+        {
+            "create_table": "CREATE TABLE pg_messages (\n    op string,\n    ts_ms bigint,\n    source ROW( version string, connector string, name string, ts_ms bigint, snapshot string, db string, sequence string, schema string, `table` string, txId bigint, lsn bigint, xmin bigint),\n    message ROW( prefix string, content string)\n) WITH (\n    'connector' = 'kafka',\n    'properties.bootstrap.servers' = '',\n    'scan.startup.mode' = 'earliest-offset',\n    'topic' = 'my_pg.message',\n    'value.format' = 'json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        }
+    ],
+    "sinks": [
+        {
+            "create_table": "CREATE TABLE order_output (\n    order_id INT,\n    client_name string,\n    table_name string,\n    pizzas string,\n    PRIMARY KEY (order_id) not enforced\n) WITH (\n   'connector' = 'upsert-kafka',\n   'properties.bootstrap.servers' = '',\n   'topic' = 'order_output',\n   'value.format' = 'json',\n   'key.format' = 'json'\n)",
+            "integration_id": "KAFKA_INTEGRATION_ID"
+        }
+    ],
+    "statement": "INSERT into order_output\nselect \n    JSON_VALUE(FROM_BASE64(message.content), '$.order_id'  RETURNING INT),\n    JSON_VALUE(FROM_BASE64(message.content), '$.client_name'),\n    JSON_VALUE(FROM_BASE64(message.content), '$.table_name'), \n    JSON_QUERY(FROM_BASE64(message.content), '$.pizzas[*]')\nfrom pg_messages"
+}
