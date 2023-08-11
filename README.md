@@ -538,7 +538,11 @@ Possible solutions:
 * [Idle Timeout](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/config/#table-exec-source-idle-timeout) - risk of losing consistency for temporary network/consumption hiccups
 * [Interval Joins](https://nightlies.apache.org/flink/flink-docs-master/docs/dev/table/sql/queries/joins/#interval-joins) - risk of losing consistency for temporary network/consumption hiccups 
 * Database triggers to periodically insert/update a row in each of the table - additional load in the database
+* [Debezium heartbeat action query](https://debezium.io/documentation/reference/stable/connectors/postgresql.html#postgresql-property-heartbeat-action-query) - writing every few seconds a query to the database, maybe updating a fake row - adding fake data to the database and to the entire pipeline - results are in batch mode (batch defined by heartbeat)
 
+```
+"heartbeat.action.query": "UPDATE CLIENTS set name='fake client' where id=10;UPDATE TABLES set name='fake table' where id=10;UPDATE TABLE_ASSIGNMENT set in_time=CURRENT_TIMESTAMP where id=10;UPDATE PIZZAS set name = 'fake pizza' where id=10;"
+```
 
 ### Pros and Cons of the transaction id joins solution
 

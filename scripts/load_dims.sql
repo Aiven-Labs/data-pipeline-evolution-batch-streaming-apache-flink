@@ -56,3 +56,8 @@ insert into orders (table_assignment_id, order_time, pizzas) VALUES
 	(2, '2023-09-23 21:07:00', '{1,1}'),
 	(2, '2023-09-23 20:10:00', '{3}');
 
+alter table clients replica identity full;
+alter table pizzas replica identity full;
+alter table tables replica identity full;
+alter table table_assignment replica identity full;
+alter table orders replica identity full;
