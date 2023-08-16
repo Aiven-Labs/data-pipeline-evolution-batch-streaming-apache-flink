@@ -565,6 +565,8 @@ Data pipeline evolution from batch to streaming with Apache Flink® is licensed 
 
 Please note that the project explicitly does not require a CLA (Contributor License Agreement) from its contributors.
 
+The characters of Teenage Mutant Ninja Turtles are a copyrighted and trademarked element of Nickelodeon (Paramount).
+
 ## Contact
 
 Bug reports and patches are very welcome, please post them as GitHub issues and pull requests at https://github.com/aiven-labs/data-pipeline-evolution-batch-streaming-apache-flink . 
