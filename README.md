@@ -299,7 +299,7 @@ In the above scenario, the following will happen:
 5. The update change in step `3` is tracked by the CDC task tracks the changes into Flink
 6. A new lookup happens, and the `"pizzas": [1,1,1]` is pushed again to the sink
 
-This basic example showcases a potential inconsistency problem to be evaluated when using the lookup approach.
+This basic example showcases a potential inconsistency problem to be evaluated when using the lookup approach. If the source database allows, a possible solution for this problem is a "Flashback query" checking the state of the database at a precide change Id defined in the order CDC event.
 
 ## 4th scenario: Outbox pattern and the CDC connector
 
